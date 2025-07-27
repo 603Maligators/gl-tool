@@ -112,36 +112,54 @@ function show_help() {
 }
 
 function install_tool() {
-    echo "Installing gl-tool..."
-    chmod +x /home/graniteledger/gl-tool.sh
+    echo "?? Installing gl-tool system-wide..."
 
-    if ! grep -q "alias gl-tool=" ~/.bashrc; then
-        echo "alias gl-tool='/home/graniteledger/gl-tool/gl-tool.sh'" >> ~/.bashrc
-        echo "Alias added to ~/.bashrc"
-    else
-        echo "Alias already exists."
+    TOOL_PATH="/home/graniteledger/gl-tool/gl-tool.sh"
+    LINK_PATH="/usr/local/bin/gl-tool"
+
+    # Ensure the script is executable
+    chmod +x "$TOOL_PATH"
+
+    # Remove old alias from .bashrc if it exists
+    if grep -q "alias gl-tool=" ~/.bashrc; then
+        echo "?? Removing old alias from ~/.bashrc..."
+        sed -i '/alias gl-tool=/d' ~/.bashrc
     fi
 
-    source ~/.bashrc
-    echo "✅ Installation complete! Try: gl-tool help"
+    # Remove any old symlink if it exists
+    if [ -L "$LINK_PATH" ]; then
+        echo "?? Removing existing symlink at $LINK_PATH"
+        sudo rm "$LINK_PATH"
+    fi
+
+    # Create new system-wide symlink
+    echo "?? Linking $TOOL_PATH to $LINK_PATH"
+    sudo ln -s "$TOOL_PATH" "$LINK_PATH"
+
+    echo "? gl-tool is now installed as a system command!"
+    echo "Try: gl-tool help"
 }
 
 function upgrade_tool() {
-    echo "Checking for updates..."
+    echo "??  Checking for gl-tool updates..."
 
-    RAW_URL="https://raw.githubusercontent.com/603Maligators/gl-tool/main/gl-tool.sh"  # <--- Replace this
+    RAW_URL="https://raw.githubusercontent.com/603Maligators/gl-tool/main/gl-tool.sh"  # <-- Replace this
+    TOOL_PATH="/home/graniteledger/gl-tool/gl-tool.sh"
+    BACKUP_PATH="/home/graniteledger/gl-tool/gl-tool.sh.bak"
 
-    cp /home/graniteledger/gl-tool.sh /home/graniteledger/gl-tool.sh.bak
+    # Backup current version
+    cp "$TOOL_PATH" "$BACKUP_PATH"
 
-    curl -fsSL $RAW_URL -o /home/graniteledger/gl-tool.sh
-
-    if [ $? -eq 0 ]; then
-        chmod +x /home/graniteledger/gl-tool.sh
-        echo "✅ gl-tool updated successfully!"
-        echo "Previous version saved as gl-tool.sh.bak"
+    # Download latest version
+    echo "??  Downloading latest version from GitHub..."
+    if curl -fsSL "$RAW_URL" -o "$TOOL_PATH"; then
+        echo "? Download complete. Running install to refresh symlink..."
+        chmod +x "$TOOL_PATH"
+        install_tool
+        echo "?? gl-tool updated and reinstalled successfully!"
     else
-        echo "❌ Failed to update. Restoring backup..."
-        mv /home/graniteledger/gl-tool.sh.bak /home/graniteledger/gl-tool.sh
+        echo "? Failed to download latest version. Restoring backup..."
+        mv "$BACKUP_PATH" "$TOOL_PATH"
     fi
 }
 
